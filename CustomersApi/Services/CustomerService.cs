@@ -2,6 +2,8 @@
 using CustomersApi.Models;
 using CustomersApi.Data;
 using Microsoft.EntityFrameworkCore;
+using Azure.Messaging.ServiceBus;
+using Newtonsoft.Json;
 
 namespace CustomersApi.Services
 {
@@ -25,6 +27,19 @@ namespace CustomersApi.Services
             customer.Vehicle = null;
             await dbContext.Customers.AddAsync(customer);
             await dbContext.SaveChangesAsync();
+
+            var customerObjAsText = JsonConvert.SerializeObject(customer);
+
+            // For Azure Service Bus
+            string connectionString = "Endpoint=sb://vehicletestdrivedn.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=R56PbNbqgdY6ICVx4zaQ7+d2VI/OrFGr/+ASbDixo78=";
+            string queueName = "azureorderqueue";
+            await using var client = new ServiceBusClient(connectionString);
+
+            ServiceBusSender sender = client.CreateSender(queueName);
+
+            ServiceBusMessage message = new ServiceBusMessage(customerObjAsText);
+
+            await sender.SendMessageAsync(message);
         }
     }
 }
